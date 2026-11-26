@@ -64,7 +64,7 @@
 
 ## Почему книга это исправляет
 
-В реальной книге `data/books/lichess_masters.bin` для позиции после
+В полной книге `data/books/lichess_masters.bin` для позиции после
 5.exd5 есть ровно два хода:
 
 | Ход | Вес |
@@ -72,9 +72,10 @@
 | **Nc6a5** (5...Na5) | 30 |
 | **b7b5** (5...b5) | 2 |
 
-Хода `Nxd5` в книге нет. Поэтому включение книги в Lichess-обёртке
-исключает повторение этой ошибки: бот выберет Na5 с вероятностью ~94%
-или b5 с вероятностью ~6%.
+Хода `Nxd5` в книге нет. Для Lichess-обёртки используется **отдельная
+крошечная книга** `data/books/anti_fried_liver.bin` только с этими двумя
+ходами: остальные дебюты снова играет сам движок, а не широкая книга.
+Полная `lichess_masters.bin` остаётся для анализа и истории.
 
 Локальный `lichess-bot/config.yml` (git-ignored):
 
@@ -84,9 +85,9 @@ engine:
     enabled: true
     book:
       standard:
-        - "<project>/data/books/lichess_masters.bin"
+        - "<project>/data/books/anti_fried_liver.bin"
     min_weight: 1
-    selection: weighted_random
+    selection: best_move
     max_depth: 20
     normalization: none
 ```

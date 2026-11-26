@@ -726,7 +726,10 @@ void Search::run(const SearchLimits& limits) {
             }
             myTime = std::min<int64_t>(myTime, 24LL * 3600 * 1000);
             myInc = std::clamp<int64_t>(myInc, 0, 1000000);
-            int mtg = limits.movestogo > 0 ? limits.movestogo : 30;
+            // Lichess does not send movestogo.  A 30-move horizon spends too
+            // much clock in 3+0/5+0 games and leaves the endgame in severe
+            // time trouble; 45 keeps a reserve for the middlegame/endgame.
+            int mtg = limits.movestogo > 0 ? limits.movestogo : 45;
             int64_t base = myTime / std::max(1, mtg) + myInc / 4 * 3;
             softLimitMs_ = std::clamp<int64_t>(
                 base, 3, std::max<int64_t>(3, myTime / 2));

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Sanity-check the Lichess Masters book against the Fried Liver trap.
+"""Sanity-check the anti-Fried-Liver book.
 
 Position after 1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6 4.Ng5 d5 5.exd5:
 
     r1bqkb1r/ppp2ppp/2n2n2/3Pp1N1/2B5/8/PPPP1PPP/RNBQK2R b KQkq - 0 5
 
-The book must offer the safe Polerio/Ulvestad moves (Na5/b5) and must not
-offer the Fried Liver blunder Nxd5.
+The tiny book must offer the safe Polerio/Ulvestad moves (Na5/b5) and must
+not offer the Fried Liver blunder Nxd5.  It contains no startpos entries, so
+the engine keeps its own opening choices everywhere else.
 """
 from __future__ import annotations
 
@@ -17,7 +18,7 @@ import chess
 import chess.polyglot
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BOOK = os.path.join(ROOT, "data", "books", "lichess_masters.bin")
+BOOK = os.path.join(ROOT, "data", "books", "anti_fried_liver.bin")
 FEN = "r1bqkb1r/ppp2ppp/2n2n2/3Pp1N1/2B5/8/PPPP1PPP/RNBQK2R b KQkq - 0 5"
 SAFE = {"c6a5": "Na5", "b7b5": "b5"}
 BAD = "c6d5"  # 5...Nxd5?, the Fried Liver blunder
