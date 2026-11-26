@@ -15,6 +15,7 @@ tests/pgn/
 experiments/
 *.log
 *.pgn
+!docs/games/*.pgn
 *.bak
 dashboard.out
 dashboard.err
