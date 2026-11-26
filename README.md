@@ -4,6 +4,7 @@
   <img src="docs/assets/avatar.png" width="400" height="400" alt="LazyCatBot avatar">
 
   [![License][license-badge]][license-link]
+  [![Release][release-badge]][release-link]
   [![Last commit][commits-badge]][commits-link]
 
 </div>
@@ -268,5 +269,7 @@ with LazyCatBot, feel free to share it.
 
 [license-badge]: https://img.shields.io/github/license/gyzlk15/lazycatbot?style=for-the-badge
 [license-link]: https://github.com/gyzlk15/lazycatbot/blob/master/LICENSE
+[release-badge]: https://img.shields.io/github/v/release/gyzlk15/lazycatbot?style=for-the-badge
+[release-link]: https://github.com/gyzlk15/lazycatbot/releases/latest
 [commits-badge]: https://img.shields.io/github/last-commit/gyzlk15/lazycatbot?style=for-the-badge
 [commits-link]: https://github.com/gyzlk15/lazycatbot/commits/master
