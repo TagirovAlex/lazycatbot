@@ -1,0 +1,86 @@
+# Copy to lichess-bot/config.yml and fill the token/paths.
+# Never commit the real config with a token.
+
+token: "PASTE_LICHESS_BOT_TOKEN"
+url: "https://lichess.org/"
+
+engine:
+  # Absolute path is recommended on Windows.
+  # chessbot.exe is the PGO release after .\build_pgo.ps1; a plain
+  # .\build.ps1 rebuild produces a slower non-PGO binary with the same source.
+  dir: "<path-to-chessbot>/"
+  name: "chessbot.exe"
+  working_dir: "<path-to-chessbot>/"
+  protocol: "uci"
+  ponder: false
+  debug: false
+  polyglot:
+    enabled: false
+  uci_options:
+    Hash: 256
+    # Threads 1..16; 8 is supported and stress-tested. 2-4 leaves CPU for
+    # the OS and the lichess-bot process on a shared machine.
+    Threads: 2
+    Move Overhead: 150
+    UseNNUE: false
+    NNUEWeight: 25
+    NNUEClip: 80
+    # Optional local Syzygy files (.rtbw/.rtbz). Uncomment and set the path:
+    # SyzygyPath: "C:/syzygy/3-4-5"
+    # SyzygyProbeDepth: 1
+    # Syzygy50MoveRule: true
+    # SyzygyProbeLimit: 7
+  draw_or_resign:
+    resign_enabled: false
+    offer_draw_enabled: false
+  silence_stderr: false
+
+move_overhead: 1000
+abort_time: 30
+rate_limiting_delay: 500
+max_takebacks_accepted: 0
+
+challenge:
+  concurrency: 1
+  games_reserved_for_humans: 0
+  sort_by: "best"
+  preference: "none"
+  accept_bot: true
+  only_bot: false
+  max_increment: 10
+  min_increment: 0
+  max_base: 600
+  min_base: 30
+  variants:
+    - standard
+  time_controls:
+    - bullet
+    - blitz
+    - rapid
+  modes:
+    - rated
+    - casual
+  max_simultaneous_games_per_user: 1
+
+matchmaking:
+  allow_matchmaking: true
+  allow_during_games: false
+  challenge_timeout: 30
+  challenge_initial_time:
+    - 60
+    - 180
+  challenge_increment:
+    - 1
+    - 2
+  opponent_rating_difference: 250
+  rating_preference: "none"
+  challenge_mode: "rated"
+  challenge_filter: "none"
+
+greeting:
+  hello: "Hi! I'm {me}. Good luck!"
+  goodbye: "Good game!"
+  hello_spectators: "Thanks for watching!"
+  goodbye_spectators: "Thanks for watching!"
+
+# pgn_directory: "lichess_games"

@@ -1,0 +1,65 @@
+# Secrets
+lichess/config.yml
+lichess-bot/config.yml
+.env
+*.token
+
+# Local lichess-bot wrapper (third-party clone with its own .git/config)
+lichess-bot/
+
+# Generated games, logs and analysis output
+lichess_games/
+results/
+tests/logs/
+tests/pgn/
+experiments/
+*.log
+*.pgn
+*.bak
+
+# Build output
+build/
+build_*/
+*.exe
+*.obj
+*.o
+*.a
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.gcda
+*.gcno
+
+# Training artifacts
+training/work/
+training/__pycache__/
+nnue_residual.cpp
+nnue_sf.cpp
+nnue_trained.cpp
+data_train.txt
+sf_data.txt
+
+# Large external/dev artifacts
+tools/sf19/
+data/syzygy/
+data/syzygy34/
+data/syzygy5/
+data/puzzles/
+data/*.epd
+data/*.zst
+data/*.binpack
+data/*.parquet
+data/books/*.cache.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
