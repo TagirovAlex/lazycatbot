@@ -16,6 +16,8 @@ experiments/
 *.log
 *.pgn
 *.bak
+dashboard.out
+dashboard.err
 
 # Build output
 build/
