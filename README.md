@@ -168,6 +168,8 @@ python tools/bot_dashboard.py --port 8765
 Open <http://127.0.0.1:8765/>. The server binds to `127.0.0.1` by default and
 reads the Lichess token server-side; the token is never sent to the browser.
 
+<p align="center"><img src="docs/assets/dashboard.png" alt="LazyCatBot dashboard" width="900"></p>
+
 More detail: [`docs/DASHBOARD.md`](docs/DASHBOARD.md).
 
 ***

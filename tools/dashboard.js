@@ -15,6 +15,16 @@ function resultLabel(g) {
          g.outcome === "loss" ? "поражение" : "ничья";
 }
 
+function statusLabel(s) {
+  const map = {
+    mate: "мат", resign: "сдача", outoftime: "время", timeout: "время",
+    stalemate: "пат", draw: "ничья", "insufficient material": "материал",
+    "50-move rule": "50 ходов", "threefold repetition": "повторение",
+    aborted: "отменена", "time forfeit": "время", "cheat detected": "дисквалификация"
+  };
+  return map[s] || s || "";
+}
+
 function fmtClock(sec) {
   if (sec === null || sec === undefined) return "";
   const m = Math.floor(sec / 60);
@@ -54,9 +64,9 @@ function liveCard(g) {
   return `<div class="card" data-id="${esc(g.gameId)}">
     <div class="card-head">
       <span class="who">${esc(g.opponent)}</span>
-      <span class="meta">${esc(g.oppRating ?? "")} · ${esc(g.speed)} · ${g.rated ? "рейтинг" : "без рейтинга"} · ход: ${esc(g.lastMove || "—")}</span>
+      <span class="meta">${esc(g.oppRating ?? "")} · ${esc(g.speed)} · ${g.rated ? "рейтинг" : "casual"}</span>
       <span class="turn ${g.isMyTurn ? "me" : "opp"}" data-clock="${esc(g.gameId)}">
-        ${g.isMyTurn ? "твой ход" : "ждём"} · ${fmtClock(g.secondsLeft)}</span>
+        ${g.isMyTurn ? "твой ход" : "ход соперника"}${fmtClock(g.secondsLeft) ? " · " + fmtClock(g.secondsLeft) : ""}</span>
     </div>
     <img class="board" data-board="${esc(g.gameId)}" src="${boardUrl(g.gameId)}" alt="board">
     ${navHtml(g.gameId)}
@@ -95,13 +105,17 @@ function renderMoves(id) {
     return;
   }
   const cur = st.follow ? st.moves.length : st.ply;
-  let html = "";
-  for (let i = 0; i < st.moves.length; i++) {
-    const num = (i % 2 === 0) ? `${i / 2 + 1}. ` : "";
-    const cls = (i + 1 === cur) ? "mv cur" : "mv";
-    html += `<span class="${cls}" data-move="${i + 1}" data-game="${esc(id)}">${num}${esc(st.moves[i])}</span> `;
+  let rows = "";
+  for (let i = 0; i < st.moves.length; i += 2) {
+    const w = st.moves[i];
+    const b = st.moves[i + 1] || "";
+    const wCur = (i + 1 === cur) ? "mv cur" : "mv";
+    const bCur = (i + 2 === cur) ? "mv cur" : "mv";
+    rows += `<div class="moverow"><span class="moveno">${i / 2 + 1}.</span>` +
+      `<span class="${wCur}" data-move="${i + 1}" data-game="${esc(id)}">${esc(w)}</span>` +
+      `<span class="${bCur}" data-move="${i + 2}" data-game="${esc(id)}">${esc(b)}</span></div>`;
   }
-  el.innerHTML = html;
+  el.innerHTML = `<div class="movetable">${rows}</div>`;
   const current = el.querySelector(".mv.cur");
   if (current) current.scrollIntoView({ block: "nearest" });
 }
@@ -117,13 +131,17 @@ function syncBoard(id) {
 
 async function loadMoves(id, live) {
   const st = getState(id, live);
+  const prevLen = st.moves.length;
+  const prevLast = st.moves[st.moves.length - 1];
   try {
     const r = await fetch("/api/moves?game=" + encodeURIComponent(id), { cache: "no-store" });
     const d = await r.json();
-    st.moves = d.moves || [];
+    const next = d.moves || [];
+    const changed = next.length !== prevLen || next[next.length - 1] !== prevLast;
+    st.moves = next;
     if (st.ply !== null) st.ply = Math.min(st.ply, st.moves.length);
     renderMoves(id);
-    syncBoard(id);
+    if (changed) syncBoard(id);
   } catch (e) {
     // Keep the last known position.
   }
@@ -172,9 +190,11 @@ document.addEventListener("click", e => {
 function renderHeader(d) {
   const title = document.getElementById("title");
   if (d.title) { title.style.display = ""; title.textContent = d.title; }
-  const ratings = Object.entries(d.ratings || {}).map(([k, v]) =>
-    `<span class="rating">${esc(k)} <b>${esc(v.rating)}</b>${v.prog ? ` <span class="${v.prog > 0 ? "win" : "loss"}">${v.prog > 0 ? "+" : ""}${v.prog}</span>` : ""}</span>`
-  ).join("");
+  const ratings = Object.entries(d.ratings || {})
+    .filter(([, v]) => v && (v.games === undefined || v.games > 0))
+    .map(([k, v]) =>
+      `<span class="rating" title="${v.prov ? "предварительный рейтинг" : ""}">${esc(k)} <b>${esc(v.rating)}${v.prov ? "?" : ""}</b>${v.prog ? ` <span class="${v.prog > 0 ? "win" : "loss"}">${v.prog > 0 ? "+" : ""}${v.prog}</span>` : ""}</span>`
+    ).join("");
   document.getElementById("ratings").innerHTML = ratings;
   const status = document.getElementById("status");
   status.textContent = d.online === true ? "онлайн" : d.online === false ? "офлайн" : "Lichess";
@@ -202,7 +222,7 @@ function renderRecent(games) {
       <td class="dim">${g.color === "white" ? "белые" : "чёрные"}</td>
       <td class="${cls}">${resultLabel(g)}</td>
       <td class="dim">${esc(g.clock)} ${g.rated ? "" : " · casual"}</td>
-      <td class="dim">${esc(g.status)}</td>
+      <td class="dim">${esc(statusLabel(g.status))}</td>
     </tr>`;
   }).join("");
 }
@@ -232,7 +252,10 @@ async function tick() {
     } else {
       for (const g of live) {
         const el = document.querySelector(`[data-clock="${g.gameId}"]`);
-        if (el) el.textContent = (g.isMyTurn ? "твой ход" : "ждём") + " · " + fmtClock(g.secondsLeft);
+        if (el) {
+          const clock = fmtClock(g.secondsLeft);
+          el.textContent = (g.isMyTurn ? "твой ход" : "ход соперника") + (clock ? " · " + clock : "");
+        }
         loadMoves(g.gameId, true);
       }
     }
@@ -243,4 +266,4 @@ async function tick() {
 }
 
 tick();
-setInterval(tick, 5000);
+setInterval(tick, 3000);

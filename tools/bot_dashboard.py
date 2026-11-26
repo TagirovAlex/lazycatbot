@@ -301,6 +301,8 @@ class BotApi:
                     "rating": perfs[key].get("rating"),
                     "rd": perfs[key].get("rd"),
                     "prog": perfs[key].get("prog"),
+                    "prov": bool(perfs[key].get("prov")),
+                    "games": perfs[key].get("games", 0),
                 }
         return {
             "username": p.get("username", self.username),
@@ -345,7 +347,7 @@ header {{ display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
 main {{ max-width: 1180px; margin: 0 auto; padding: 18px 20px 40px; }}
 h2 {{ font-size: 13px; text-transform: uppercase; letter-spacing: .8px;
   color: var(--dim); margin: 24px 0 10px; }}
-.grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; }}
+.grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 560px)); gap: 16px; justify-content: start; }}
 .card {{ background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
   overflow: hidden; }}
 .card-head {{ display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;
@@ -357,9 +359,12 @@ h2 {{ font-size: 13px; text-transform: uppercase; letter-spacing: .8px;
 .board {{ width: 100%; height: auto; aspect-ratio: 1 / 1; border: 0; display: block;
   background: #111; object-fit: contain; }}
 .moves {{ padding: 6px 12px; border-top: 1px solid var(--line);
-  font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
-  color: var(--dim); max-height: 120px; overflow: auto; }}
-.moves b {{ color: var(--text); }}
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--dim); max-height: 190px; overflow: auto; }}
+.movetable {{ display: flex; flex-direction: column; gap: 1px; }}
+.moverow {{ display: grid; grid-template-columns: 34px 1fr 1fr; gap: 6px; align-items: center; }}
+.moveno {{ text-align: right; color: #777; }}
+.tablecard {{ overflow-x: auto; }}
 .nav {{ display: flex; align-items: center; gap: 6px; padding: 6px 10px;
   border-top: 1px solid var(--line); }}
 .nav button {{ background: #3b3936; color: var(--text); border: 1px solid #4a4844;
@@ -367,7 +372,7 @@ h2 {{ font-size: 13px; text-transform: uppercase; letter-spacing: .8px;
 .nav button:hover {{ background: #4a4844; }}
 .plylabel {{ margin: 0 auto; color: var(--dim); font-size: 12px;
   min-width: 70px; text-align: center; }}
-.mv {{ cursor: pointer; padding: 1px 2px; border-radius: 2px; }}
+.mv {{ cursor: pointer; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }}
 .mv:hover {{ color: #fff; background: #3b3936; }}
 .mv.cur {{ color: #fff; background: #4a4844; font-weight: 700; }}
 .empty {{ background: var(--panel); border: 1px dashed var(--line); border-radius: 6px;
@@ -406,9 +411,9 @@ a:hover {{ color: #fff; text-decoration: underline; }}
   </section>
   <section>
     <h2>Последние партии</h2>
-    <div class="card"><table>
+    <div class="card tablecard"><table>
       <thead><tr><th>Когда</th><th>Соперник</th><th>Цвет</th><th>Результат</th>
-      <th>Контроль</th><th>Рейтинг</th></tr></thead>
+      <th>Контроль</th><th>Статус</th></tr></thead>
       <tbody id="recent"><tr><td colspan="6" class="dim">загрузка…</td></tr></tbody>
     </table></div>
   </section>
@@ -426,12 +431,16 @@ class Handler(BaseHTTPRequestHandler):
         return
 
     def _send(self, code: int, body: bytes, ctype: str):
-        self.send_response(code)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+            # The browser closed the tab or navigated away mid-response.
+            self.close_connection = True
 
     def do_GET(self):
         route = urllib.parse.urlparse(self.path).path
