@@ -19,7 +19,7 @@
 
 Что сделано:
 - оставлен **один** экземпляр;
-- `C:\LichessBot\start_bot.cmd` теперь проверяет уже запущенный
+- `start_bot.cmd` теперь проверяет уже запущенный
   `lichess-bot.py` и не стартует второй;
 - в локальном `lichess-bot` увеличен watchdog event stream и добавлен sleep
   на `RateLimitedError`, чтобы не долбить 429 каждую секунду.

@@ -33,7 +33,7 @@ import yaml
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 API = "https://lichess.org"
-DEFAULT_CONFIG = r"C:\LichessBot\lichess-bot\config.yml"
+DEFAULT_CONFIG = os.path.join(ROOT, "lichess-bot", "config.yml")
 DASHBOARD_JS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.js")
 
 

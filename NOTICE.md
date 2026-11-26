@@ -1,104 +1,86 @@
 # NOTICE
 
-## 1. Лицензия проекта
+## 1. Project license
 
-ChessBot 2.0 NNUE распространяется на условиях **GNU General Public License,
-версия 3 или (по вашему выбору) любая более поздняя** — `GPL-3.0-or-later`.
-Полный текст лицензии находится в файле [LICENSE](LICENSE).
+LazyCatBot (the UCI engine identifies itself as `ChessBot 2.0 NNUE`) is
+distributed under the **GNU General Public License, version 3 or (at your
+option) any later version** — `GPL-3.0-or-later`. The full text is in
+[LICENSE](LICENSE).
 
-Если вы распространяете бинарники `chessbot.exe`/`trainer.exe`, вы обязаны
-соблюдать GPLv3: предоставить соответствующий исходный код, сохранить уведомления
-об авторских правах и лицензии и не добавлять дополнительных ограничений.
+If you distribute `chessbot.exe` or `trainer.exe`, you must comply with the
+GPLv3: provide the corresponding source code, keep the copyright and license
+notices, and do not add further restrictions.
 
-## 2. Сторонние компоненты
+## 2. Third-party components
 
-### 2.1. Stockfish 19
+### 2.1. Fathom / Syzygy probing
 
-В каталоге `tools/sf19/stockfish/` находится дистрибутив Stockfish 19:
-
-- `stockfish-windows-x86-64-universal.exe` — исполняемый файл;
-- `src/` — исходный код Stockfish;
-- `Copying.txt` — текст GPLv3;
-- `README.md`, `AUTHORS`, `CITATION.cff` и другие файлы проекта.
-
-Stockfish распространяется на условиях GPLv3. Он используется **только** как
-тестовый соперник и источник статических оценок для скриптов:
-
-- `tools/arena.py` запускает его как отдельный процесс;
-- `tools/label_stockfish.py` читает его вывод команды `eval`.
-
-Stockfish **не линкуется** в `chessbot.exe` и не является частью движка. Наличие
-`tools/sf19` в репозитории не означает, что ChessBot основан на Stockfish или
-поддерживается его разработчиками. Название Stockfish принадлежит его проекту;
-этот репозиторий с ним не аффилирован.
-
-Если вы публикуете релиз без Stockfish, каталог `tools/sf19` можно удалить. Если
-оставляете его, сохраняйте GPLv3-текст и исходники (они уже включены) и не
-переименовывайте чужой бинарник в собственный продукт.
-
-### 2.2. python-chess
-
-`tools/arena.py` и `tools/label_stockfish.py` используют пакет `python-chess`
-(GPL-3.0). Он не входит в репозиторий и устанавливается отдельно:
-
-```powershell
-pip install chess
-```
-
-### 2.3. Fathom / Syzygy probing
-
-`third_party/fathom/` содержит библиотеку Fathom для чтения Syzygy tablebase:
+`third_party/fathom/` contains the Fathom library for reading Syzygy
+tablebases:
 
 - `tbprobe.c`, `tbprobe.h`, `tbchess.c`, `tbconfig.h`, `stdendian.h`;
 - `LICENSE` — MIT (Copyright © 2013–2018 Ronald de Man, © 2015 basil00,
   © 2016–2025 Jon Dart).
 
-Fathom собирается вместе с движком и не требует внешних DLL. Сами файлы
-`.rtbw`/`.rtbz` в репозиторий **не входят**: путь задаётся UCI-опцией
-`SyzygyPath`. Скачивая таблицы, проверяйте условия их распространения.
+Fathom is compiled into the engine and does not require external DLLs. The
+`.rtbw`/`.rtbz` tablebase files are **not** included; set `SyzygyPath` to your
+local copy. Check the distribution terms of any tablebase files you download.
 
-## 3. NNUE-веса и данные
+### 2.2. python-chess
 
-| Артефакт | Происхождение | Лицензионный статус |
-|---|---|---|
-| `src/nnue_weights.cpp` | Residual-сеть, обучена на self-play метках `data_train.txt` (поиск глубины 6) | GPL-3.0-or-later (политика проекта) |
-| `nnue_residual.cpp`, `nnue_trained.cpp` | Сгенерированные варианты residual-сети | GPL-3.0-or-later |
-| `data_train.txt`, `data_small.txt` | Self-play позиции проекта | GPL-3.0-or-later |
-| `nnue_sf.cpp` | Direct-сеть, дистиллированная из статической оценки Stockfish 19 | GPLv3-совместимый статус; рассматривайте как GPL-3.0-or-later |
-| `sf_data.txt`, `sf_small.txt` | Позиции, размеченные статической оценкой Stockfish 19 | GPLv3-совместимый статус |
-| `experiments/nnue/**` | Исторические эксперименты; `sfpos*`, `base_sf*` и подобные файлы — разметка Stockfish, остальное — self-play/код проекта | Для SF-производных — GPLv3; остальное — GPL-3.0-or-later |
-| `tools/sf19/stockfish/**` | Дистрибутив Stockfish 19 | GPLv3 (см. `Copying.txt`) |
+`tools/arena.py`, `tools/bot_dashboard.py`, `tools/label_stockfish.py` and the
+test suite use the `python-chess` package (GPL-3.0). It is not bundled and is
+installed separately:
 
-Важно:
+```bash
+pip install chess
+```
 
-- **Сборка по умолчанию** (`build.ps1`, `CMakeLists.txt`, `Makefile`) использует
-  `src/nnue_weights.cpp`, то есть residual-сеть на self-play данных, а не
-  direct-сеть из Stockfish.
-- Но репозиторий содержит `nnue_sf.cpp`, `sf_data.txt` и `tools/sf19`, полученные
-  из Stockfish. Поэтому простая и безопасная политика — распространять **весь
-  репозиторий и бинарники** на условиях GPLv3.
-- `experiments/` — исторические эксперименты; часть данных/весов там тоже получена
-  из Stockfish (`sfpos*`, `base_sf*`). Перед публикацией проверьте этот каталог
-  отдельно или не включайте его.
-- Если вы хотите лицензировать оригинальный код иначе, сначала удалите
-  SF-производные артефакты (`nnue_sf.cpp`, `sf_data.txt`, `sf_small.txt`,
-  `tools/sf19`), проверьте происхождение остальных весов и проконсультируйтесь с
-  юристом. Это не юридическая консультация.
+### 2.3. Stockfish 19 (optional, not included)
 
-## 4. Практический чек-лист перед публикацией
+The public repository does **not** include Stockfish. For local testing and
+analysis you may place a Stockfish 19 build under `tools/sf19/stockfish/`;
+that directory is git-ignored.
 
-1. Оставьте `LICENSE`, `NOTICE.md` и уведомления в исходниках.
-2. Приложите исходный код, соответствующий опубликованным бинарникам.
-3. Если включаете `tools/sf19`, сохраните `Copying.txt`, `AUTHORS` и исходники
-   Stockfish; не заявляйте, что Stockfish — часть ChessBot.
-4. Если включаете `sf_data.txt`/`nnue_sf.cpp`, считайте их GPLv3-совместимыми.
-5. Укажите, что проект не связан с разработчиками Stockfish.
-6. Не используйте название Stockfish как бренд вашей сборки.
+Stockfish is used only as an external process:
 
-## 5. Отказ от гарантий
+- `tools/arena.py` can run it as a separate opponent;
+- `tools/label_stockfish.py` can read its `eval` output for experiments.
 
-Программа распространяется «как есть», без каких-либо гарантий, явных или
-подразумеваемых, включая гарантии товарной пригодности и пригодности для конкретной
-цели. Авторы не несут ответственности за последствия использования, включая
-проигранные партии, некорректные турнирные результаты или потерю данных. Подробнее
-— в тексте GPLv3.
+Stockfish is **not** linked into `chessbot.exe` and is not part of the engine.
+The name Stockfish belongs to its project; this repository is not affiliated
+with or endorsed by the Stockfish developers.
+
+If you redistribute a build that includes Stockfish, keep its GPLv3 text,
+authors and source files, and do not present Stockfish as part of LazyCatBot.
+
+## 3. NNUE weights and data
+
+`src/nnue_weights.cpp` is a residual network trained on self-play data
+generated by this project. It is distributed under `GPL-3.0-or-later`.
+
+The public repository does not include Stockfish-derived weights, labels or
+experiment dumps. Local development trees may contain such artifacts under
+`nnue_sf.cpp`, `sf_data.txt`, `experiments/` or `tools/sf19/`; those paths are
+excluded by `.gitignore`. If you redistribute them, treat them as
+GPLv3-compatible and keep the corresponding notices.
+
+The default build (`build.ps1`, `build_pgo.ps1`, `CMakeLists.txt`, `Makefile`)
+uses the self-play residual network in `src/nnue_weights.cpp`, not a
+Stockfish-derived direct network.
+
+## 4. Practical checklist
+
+1. Keep `LICENSE`, `NOTICE.md` and the source headers.
+2. Publish the source that corresponds to any binary you distribute.
+3. If you add Stockfish locally, keep its GPLv3 text, authors and sources.
+4. State clearly that the project is not affiliated with Stockfish.
+5. Do not use the Stockfish name as the brand of your build.
+
+## 5. No warranty
+
+The program is distributed “as is”, without any warranty, express or implied,
+including the warranties of merchantability and fitness for a particular
+purpose. The authors are not liable for any consequences of use, including lost
+games, incorrect tournament results or data loss. See the GPLv3 text for the
+full disclaimer.
