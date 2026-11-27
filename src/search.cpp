@@ -304,12 +304,20 @@ int Search::quiescence(int alpha, int beta, int ply) {
     }
 
     if (inCheck && legal == 0) return -MATE + ply;
+    // qsearch only generated captures.  If none of them was legal, the
+    // position may still be a stalemate; do the full legality test before
+    // trusting the static score.
+    if (!inCheck && legal == 0 && !pos_.hasLegalMove()) return 0;
     return bestScore;
 }
 
 int Search::negamax(int depth, int alpha, int beta, int ply, bool cutNode,
                     bool nullAllowed) {
     if (ply >= MAX_PLY - 1) return evaluate(pos_);
+    // A node was actually reached.  Previously seldepth was only updated in
+    // quiescence, so a search whose children all return an immediate draw
+    // (KvK, rule-50 draws) reported "depth 126 seldepth 0".
+    if (ply > selDepth_) selDepth_ = ply;
     pvLen_[ply] = ply;
 
     if (nodeCheck()) return 0;
@@ -338,7 +346,14 @@ int Search::negamax(int depth, int alpha, int beta, int ply, bool cutNode,
         std::popcount(pos_.occ) <= tbMaxPieces_ && pos_.castling == 0 &&
         (!tbRule50_ || pos_.halfMove == 0)) {
         const Syzygy::Wdl wdl = Syzygy::probeWDL(pos_);
-        if (wdl != Syzygy::Wdl::Fail) return tbScore(wdl, ply, tbRule50_);
+        if (wdl != Syzygy::Wdl::Fail) {
+            // Fathom encodes checkmate as TB_LOSS.  Do not turn a real mate
+            // into a generic -20000 score.
+            if (wdl == Syzygy::Wdl::Loss && inCheck &&
+                !pos_.hasLegalMove())
+                return -MATE + ply;
+            return tbScore(wdl, ply, tbRule50_);
+        }
     }
 
     // The TT key includes the halfmove clock (see transpositionKey()). In
@@ -408,8 +423,8 @@ int Search::negamax(int depth, int alpha, int beta, int ply, bool cutNode,
             if (stopped()) return 0;
             if (score >= probBeta) {
                 if (!ttContextual)
-                    tt_.store(ttKey, depth, scoreToTT(score, ply), staticEval,
-                              BOUND_LOWER, m);
+                    tt_.store(ttKey, depth - 4, scoreToTT(score, ply),
+                              staticEval, BOUND_LOWER, m);
                 return score;
             }
         }
@@ -677,6 +692,7 @@ void Search::printInfo(int depth, int score, int64_t elapsed) const {
 
 void Search::run(const SearchLimits& limits) {
     initLmr();
+    const bool waitForStop = limits.waitForStop;
 
     // Cache tablebase settings for this search so the hot path does not read
     // atomics at every node.  UCI changes these only while no search runs.
@@ -776,7 +792,9 @@ void Search::run(const SearchLimits& limits) {
     // Root Syzygy probe: play a tablebase move immediately.  Only the main
     // worker probes; Fathom's root probe is not thread safe.  Helpers keep
     // their normal search and are stopped by the controller when this returns.
-    if (mainThread_ && tbEnabled_) {
+    // An infinite search must not publish bestmove here; skip the shortcut so
+    // the normal stop-gated path below is used.
+    if (mainThread_ && tbEnabled_ && !waitForStop) {
         const Syzygy::RootResult tb = Syzygy::probeRoot(pos_);
         if (tb.ok && !tb.checkmate && !tb.stalemate && tb.from >= 0) {
             int promo = 0;
@@ -904,7 +922,11 @@ void Search::run(const SearchLimits& limits) {
                              return a.score > b.score;
                          });
 
-        if (score >= MATE_IN_MAX || score <= -MATE_IN_MAX) break;
+        // In infinite mode a mate score does not end the search; the
+        // controller's `stop` is the only thing that may end it.
+        if (!waitForStop &&
+            (score >= MATE_IN_MAX || score <= -MATE_IN_MAX))
+            break;
 
         // Only the main search uses the soft time limit.  Helpers keep
         // searching (sharing their TT results) until the main search finishes
@@ -914,6 +936,17 @@ void Search::run(const SearchLimits& limits) {
         if (mainThread_ && timeLimited_ && depth >= 8 &&
             elapsed * 2 > hardLimitMs_)
             break;
+    }
+
+    // `go infinite` must not return bestmove on its own (including when the
+    // fixed MAX_PLY loop ends: KvK and rule-50 draw positions finish all 126
+    // nominal iterations in a few milliseconds).  Keep the worker alive until
+    // the controller raises the shared stop flag, then publish the best
+    // completed result.  Bench/trainer use limits.infinite without
+    // waitForStop, so their finite depth loops are unaffected.
+    if (waitForStop) {
+        while (!stopped())
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     if (completedBest.isNone()) completedBest = rootFallback_;

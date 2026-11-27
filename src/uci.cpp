@@ -78,6 +78,7 @@ public:
                 int depth = 1;
                 is >> depth;
                 depth = std::clamp(depth, 0, 15);
+                ensureHistoryRoom(depth);
                 auto start = std::chrono::steady_clock::now();
                 uint64_t nodes = perft(pos_, depth);
                 auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -104,6 +105,17 @@ private:
         while (helpers_.size() < want)
             helpers_.push_back(std::make_unique<Search>(tt_));
         while (helpers_.size() > want) helpers_.pop_back();
+    }
+
+    // Keep enough undo/key history for the next search or perft.  Once the
+    // fixed MAX_HIST buffer is full, makeMove() refuses every move, which
+    // makes a live position look terminal.  Re-anchor the game history at the
+    // current FEN when the remaining room is too small.  This only runs for
+    // extremely long games (or huge perft depths).
+    void ensureHistoryRoom(int extra) {
+        if (pos_.histPly <= MAX_HIST - extra - 2) return;
+        const std::string current = pos_.fen();
+        if (!pos_.setFen(current)) pos_.setStartpos();
     }
 
     // Fill the per-go shared state and give every worker its own root copy.
@@ -191,6 +203,10 @@ private:
         std::string token;
         if (!(is >> token)) return false;
         if constexpr (std::is_unsigned_v<T>) {
+            // stoull accepts a leading '-' and wraps it to a huge unsigned
+            // value.  A negative `go nodes` must be malformed, not a request
+            // for an effectively infinite node budget.
+            if (!token.empty() && token.front() == '-') return false;
             try {
                 size_t pos = 0;
                 unsigned long long v = std::stoull(token, &pos);
@@ -323,9 +339,10 @@ private:
 
         if (token == "moves") {
             while (is >> token) {
+                ensureHistoryRoom(1);
                 Move m = pos_.parseMove(token);
                 if (m.isNone()) break;
-                pos_.makeMove(m);
+                if (!pos_.makeMove(m)) break;
             }
         }
     }
@@ -342,35 +359,58 @@ private:
         bool hasClock = false;
         bool infinite = false;
         bool hasExplicitLimit = false;
+        bool otherLimit = false;
         bool nodesSet = false;
         bool movetimeSet = false;
 
         std::string token;
         while (is >> token) {
             if (token == "wtime") {
-                if (readNumber(is, limits.wtime)) hasClock = true;
+                otherLimit = true;
+                if (readNumber(is, limits.wtime) && limits.wtime >= 0) {
+                    hasClock = true;
+                } else {
+                    // Keep malformed/negative clocks finite.  Previously a
+                    // bad wtime/btime left hasClock false (or made anyClock
+                    // false) and turned the command into a depth-126 search.
+                    limits.wtime = 0;
+                    hasClock = true;
+                }
             } else if (token == "btime") {
-                if (readNumber(is, limits.btime)) hasClock = true;
+                otherLimit = true;
+                if (readNumber(is, limits.btime) && limits.btime >= 0) {
+                    hasClock = true;
+                } else {
+                    limits.btime = 0;
+                    hasClock = true;
+                }
             } else if (token == "winc") {
+                otherLimit = true;
                 readNumber(is, limits.winc);
             } else if (token == "binc") {
+                otherLimit = true;
                 readNumber(is, limits.binc);
             } else if (token == "movestogo") {
+                otherLimit = true;
                 readNumber(is, limits.movestogo);
             } else if (token == "depth") {
+                otherLimit = true;
                 // Malformed limits get a small finite fallback instead of
                 // silently turning into an unintended infinite search.
                 if (!readNumber(is, limits.depth)) limits.depth = 8;
                 hasExplicitLimit = true;
             } else if (token == "movetime") {
+                otherLimit = true;
                 if (!readNumber(is, limits.movetime)) limits.movetime = 50;
                 movetimeSet = true;
                 hasExplicitLimit = true;
             } else if (token == "nodes") {
+                otherLimit = true;
                 if (!readNumber(is, limits.nodes)) limits.nodes = 100000;
                 nodesSet = true;
                 hasExplicitLimit = true;
             } else if (token == "mate") {
+                otherLimit = true;
                 int mate = 0;
                 if (!readNumber(is, mate)) mate = 4;
                 int64_t d = int64_t(std::max(1, mate)) * 2;
@@ -386,6 +426,10 @@ private:
 
         limits.infinite = infinite;
         if (!hasExplicitLimit && !hasClock) limits.infinite = true;
+        // Only a pure infinite search (or `go` with no limits) is gated on
+        // `stop`.  Explicit depth/movetime/nodes/mate/clock parameters retain
+        // their normal finite behavior.
+        limits.waitForStop = limits.infinite && !otherLimit;
         if (limits.depth < 1) limits.depth = 1;
         if (limits.depth > MAX_PLY) limits.depth = MAX_PLY;
         if (movetimeSet && limits.movetime < 0) limits.movetime = 0;
@@ -395,6 +439,7 @@ private:
             limits.nodes = 1;
         }
 
+        ensureHistoryRoom(MAX_PLY);
         ensureHelpers(threads_);
         prepareShared(limits);
         search_.setSilent(false);

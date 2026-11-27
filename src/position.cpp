@@ -113,6 +113,14 @@ bool Position::parseFenInto(const std::string& fen) {
     if (popcount(pieces(WHITE, PAWN)) > 8 ||
         popcount(pieces(BLACK, PAWN)) > 8)
         return false;
+    {
+        // A pawn can never legally stand on its first or last rank.
+        U64 pawns = pieces(PAWN);
+        while (pawns) {
+            const int sq = popLsb(pawns);
+            if (rankOf(sq) == 0 || rankOf(sq) == 7) return false;
+        }
+    }
     if (kingAttacks(kingSq[WHITE]) & bit(kingSq[BLACK])) return false;
 
     if (sideField != "w" && sideField != "b") return false;
@@ -511,6 +519,10 @@ bool Position::makeNullMove() {
     ep = -1;
     key ^= Zobrist::side;
     side = ~side;
+    // A null move is not a real game move.  Reset the halfmove clock so the
+    // repetition scan cannot cross the null node and treat a null-move line
+    // as a real repetition.  unmakeNullMove() restores the real clock.
+    halfMove = 0;
 
     ++histPly;
     keyHist[histPly] = key;

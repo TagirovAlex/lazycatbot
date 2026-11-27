@@ -533,6 +533,9 @@ struct SearchLimits {
     int movetime = -1;
     uint64_t nodes = 0;
     bool infinite = false;
+    // True for a real UCI `go infinite` (not bench/trainer pseudo-infinite):
+    // the worker must not publish bestmove until the controller stops it.
+    bool waitForStop = false;
     int moveOverhead = 30;
 };
 
